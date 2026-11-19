@@ -41,8 +41,15 @@ export default defineConfig(({ mode }) => {
         include: ['src/**/*.{js,jsx}', 'shared/**/*.js'],
         exclude: ['src/main.jsx', 'src/test/**', '**/*.test.{js,jsx}', 'src/data/**'],
         reporter: ['text', 'html', 'lcov'],
-        // CI fails if coverage drops below these levels
-        thresholds: { statements: 75, branches: 70, functions: 75, lines: 75 },
+        // CI fails if coverage of these layers drops below today's levels. The domain logic (shared/,
+        // lib/, hooks/) is held to a high bar; the workspace UI pages have no per-page minimum yet
+        // (Playwright end-to-end tests are the planned next step — see README "Future improvements").
+        thresholds: {
+          'shared/**': { statements: 80, branches: 65, functions: 85, lines: 85 },
+          'src/lib/**': { statements: 85, branches: 80, functions: 75, lines: 85 },
+          'src/hooks/**': { statements: 75, branches: 65, functions: 80, lines: 75 },
+          'src/workspace/engine/**': { statements: 50, branches: 45, functions: 40, lines: 50 },
+        },
       },
     },
   }

@@ -3,9 +3,8 @@
 # Enable it in your repo: Settings → Pages → Source: "GitHub Actions".
 name: Deploy to GitHub Pages
 
+# Manual only (Actions → "Deploy to GitHub Pages" → Run workflow): the main deployment is Vercel.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
