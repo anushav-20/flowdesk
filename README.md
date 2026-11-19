@@ -1,5 +1,13 @@
 # FlowDesk — Full-Stack Team Productivity Platform
 
+[![CI](https://github.com/anushav-20/flowdesk/actions/workflows/ci.yml/badge.svg)](https://github.com/anushav-20/flowdesk/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-209%20passing-brightgreen)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-Express%205-339933?logo=nodedotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+
+**🔗 Live demo:** [flowdesk-psi-umber.vercel.app](https://flowdesk-psi-umber.vercel.app) — open [`/app`](https://flowdesk-psi-umber.vercel.app/app) and pick a demo user (Owner, Admin, Member or Viewer). No sign-up needed.
+
 FlowDesk is a production-style, full-stack application built around a fictional team-productivity product. It has three parts:
 
 1. **Marketing site:** landing page, pricing with an ROI calculator, a blog backed by a live REST API, and a contact form.
@@ -26,6 +34,7 @@ The business rules (dependency graph, automation engine, approval state machine,
 - [Features](#features)
 - [Workspace app features](#workspace-app-features)
 - [Backend API](#backend-api)
+- [How it works (diagrams)](#how-it-works)
 - [Quick start](#quick-start)
 - [Scripts](#scripts)
 - [Project structure](#project-structure)
@@ -158,6 +167,210 @@ users ─< memberships >─ orgs ─< projects ─< tasks ─< comments
 users ─< refresh_tokens   (hashed, family id for reuse detection)
 ```
 
+## How it works
+
+This section explains FlowDesk with diagrams, from the big picture down to individual features. GitHub renders these diagrams automatically.
+
+### 1. The big picture
+
+```mermaid
+flowchart LR
+    U([User in a browser]) --> L[Landing page<br/>React]
+    U --> W[Workspace app<br/>/app]
+    W --> C{Which mode?}
+    C -- "Demo mode<br/>(no setup)" --> E[In-browser engine<br/>localStorage + BroadcastChannel]
+    C -- "API mode" --> R[Remote client<br/>REST + WebSocket]
+    R --> S[Express API<br/>Node.js]
+    S --> DB[(PostgreSQL)]
+    S --> Q[[Job queue + worker]]
+    Q --> X[GitHub · Slack · Webhooks · Email]
+    SH[/shared/<br/>business rules/]
+    E -.uses.-> SH
+    S -.uses.-> SH
+```
+
+FlowDesk has a **marketing site** and a **workspace app**. The workspace can run in two modes:
+
+- **Demo mode:** everything runs inside the browser, so anyone can try it instantly.
+- **API mode:** the browser talks to a real **Node.js + PostgreSQL** backend.
+
+Both modes use the same business rules from the `shared/` folder. A rule such as "a blocked task can't start" is written once and behaves identically everywhere.
+
+### 2. What a user does
+
+```mermaid
+flowchart TD
+    A[Open the site] --> B[Click 'Open the app']
+    B --> C[Sign in<br/>Owner · Admin · Member · Viewer]
+    C --> D[Dashboard<br/>open tasks, overdue, deadline forecast]
+    D --> E[Board<br/>create, edit, drag tasks]
+    E --> F{Task needs approval?}
+    F -- yes --> G[Submit for review → approvers decide]
+    F -- no --> H[Move to Completed]
+    G --> H
+    H --> I[Points & badges · analytics update]
+    E --> J[Dependencies<br/>critical path, deadline risks]
+    E --> K[Ask AI<br/>'What should I work on?']
+    D --> L[Integrations<br/>connect GitHub & Slack]
+    L --> M[PRs linked to tasks automatically]
+```
+
+The **role** you sign in with decides what you can do. For example, a Viewer can look but not edit, and only Owners and Admins can manage integrations. The same permission table is enforced in the UI and on the server.
+
+### 3. The life of a task
+
+```mermaid
+stateDiagram-v2
+    [*] --> ToDo: created
+    ToDo --> InProgress: start
+    InProgress --> Review: ready for review
+    Review --> Completed: approved / no approval needed
+    Review --> InProgress: rejected (automation sends it back)
+    InProgress --> ToDo
+    Completed --> [*]
+
+    state "To do" as ToDo
+    state "In progress" as InProgress
+    state "Completed" as Completed
+
+    note right of ToDo
+        Blocked while any
+        "blocked by" task is open
+    end note
+```
+
+Rules enforced on every move:
+
+- A task **can't start** while a task it depends on is still open.
+- If the workspace requires approvals, a task **can't be completed** until every approval step has said yes.
+- Completing a **recurring** task creates its next occurrence.
+
+### 4. What happens when you change a task (API mode)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant UI as React app
+    participant API as Express API
+    participant DB as PostgreSQL
+    participant Bus as Event bus
+    participant WS as WebSocket
+
+    User->>UI: Drag task to "In progress"
+    UI->>API: PATCH /orgs/:id/tasks/:taskId (JWT)
+    API->>API: Validate body (zod)
+    API->>API: Check login, org membership, role permission
+    API->>DB: BEGIN
+    API->>DB: Update task (version check)
+    API->>DB: Write audit entry (before → after)
+    API->>DB: Create notifications
+    API->>DB: COMMIT
+    API-->>UI: 200 OK (updated task)
+    API->>Bus: Publish "task.status_changed"
+    Bus->>Bus: Run automation rules
+    Bus->>DB: Queue webhook / Slack jobs
+    Bus->>WS: Push event to the org's room
+    WS-->>UI: Teammates' screens update live
+```
+
+All writes go through a **unit of work**: the change, its audit-log entry and its notifications are saved in **one transaction**. Events are published only **after the commit**, so automations, webhooks and live updates never act on data that was rolled back. If two people edit the same task at once, the `version` check returns **409 Conflict** instead of silently overwriting.
+
+### 5. Workflow automation
+
+```mermaid
+flowchart LR
+    T[Trigger<br/>task created · status changed · completed<br/>overdue · due within 24h<br/>approval requested / decided<br/>project reaches X%] --> C{Conditions match?<br/>e.g. priority is High<br/>decision is Rejected}
+    C -- no --> N[Do nothing]
+    C -- yes --> A[Actions<br/>assign · notify · set status<br/>set priority · comment<br/>complete parent]
+    A --> E[New events]
+    E --> D{Chain depth < 3?}
+    D -- yes --> T
+    D -- no --> S[Stop: loop protection]
+```
+
+Admins build rules like **"When an approval is rejected → move the task back to In progress and notify the assignee"**. Actions can trigger further rules, and a depth limit of 3 stops endless loops. Every run is recorded in the rule's history.
+
+### 6. GitHub integration
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin
+    participant FD as FlowDesk
+    participant GH as GitHub REST API
+
+    Admin->>FD: Connect "owner/repo"
+    FD->>GH: GET /repos/owner/repo
+    GH-->>FD: Repository exists ✔
+    loop Every 10 minutes (or "Sync now")
+        FD->>GH: GET pull requests + commits
+        GH-->>FD: PR list (open / draft / merged / closed)
+        FD->>FD: Find task keys (e.g. FD-4) in PR titles, branches, commits
+        FD->>FD: Link PRs & commits to tasks, update PR status
+        FD->>FD: PR opened → Review · PR merged → Completed (configurable)
+    end
+```
+
+Developers only need to mention a task key such as `FD-4` in a pull request title, branch name (`feature/fd-4-cart`) or commit message. FlowDesk links it to the task and shows the PR status, and the task moves along automatically. The sync is **idempotent**: it only moves a task when the PR's state actually changes, so a task someone moved by hand isn't pushed back.
+
+### 7. Background jobs
+
+```mermaid
+stateDiagram-v2
+    [*] --> Queued: enqueue (priority, run_at)
+    Queued --> Running: worker claims job<br/>(atomic UPDATE … WHERE status='queued')
+    Running --> Done: success
+    Running --> Queued: failed → retry later<br/>(exponential backoff)
+    Running --> Dead: failed max attempts
+    Dead --> Queued: admin clicks Retry
+    Done --> [*]
+```
+
+Webhook deliveries, Slack messages, GitHub syncs, overdue and deadline reminders, and weekly reports all run as **background jobs** stored in PostgreSQL. A worker claims a job with a single conditional `UPDATE`, so **two workers can never run the same job**. Failed jobs are retried with growing delays, and after the last attempt they land in a **dead-letter queue** that admins can inspect and retry.
+
+### 8. Sign-in and session security
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant App as React app
+    participant API as Express API
+    participant DB as PostgreSQL
+
+    User->>App: Email + password
+    App->>API: POST /auth/login
+    API->>DB: Find user, verify bcrypt hash
+    API->>DB: Store hashed refresh token (new family)
+    API-->>App: Access token (15 min) + refresh token
+    Note over App,API: Later, the access token expires
+    App->>API: Request → 401
+    App->>API: POST /auth/refresh (old refresh token)
+    API->>DB: Mark old token used, store new one
+    API-->>App: New access + refresh token
+    App->>API: Retry the original request ✔
+    Note over API,DB: If an already-used refresh token is presented again,<br/>it was stolen → the whole token family is revoked
+```
+
+Access tokens are short-lived. Refresh tokens are **rotated on every use** and stored only as hashes, so reuse of an old token is detected and the session is shut down.
+
+### 9. Working offline
+
+```mermaid
+flowchart LR
+    A[Edit a task] --> B{Online?}
+    B -- yes --> C[Send to API]
+    B -- no --> D[Save change in outbox<br/>+ show it immediately]
+    D --> E[Connection returns]
+    E --> F[POST /sync]
+    F --> G{Same field changed<br/>on the server too?}
+    G -- no --> H[Apply change ✔]
+    G -- yes --> I[Keep server value<br/>report conflict to user]
+```
+
+Changes made offline are queued and synced when the connection returns. A **field-level merge** applies everything that doesn't clash and clearly reports anything that does.
+
 ## Quick start
 
 Requires **Node.js 20+**.
@@ -277,19 +490,20 @@ Every component keeps its CSS file next to it. Imports use the `@/` alias (`@/li
 
 ## Architecture
 
-```
-            ┌─────────────────────────── app/ ───────────────────────────┐
-            │ router → AppLayout (ErrorBoundary + Suspense) → pages/     │
-            └───────────────────────────────┬────────────────────────────┘
-                                            ▼
-     pages/ (thin)  ──compose──▶  features/ (UI + feature logic)  ──use──▶  components/ui (generic)
-                                            │
-                     ┌──────────────────────┼───────────────────────┐
-                     ▼                      ▼                       ▼
-              hooks/useQuery         store/ (createStore)       services (per feature)
-                     │                      │                       │
-                     ▼                      ▼                       ▼
-             lib/queryCache          lib/createStore             lib/http  ──▶  REST API
+**Frontend layers**
+
+```mermaid
+flowchart TD
+    APP["app/<br/>router → AppLayout (ErrorBoundary + Suspense)"] --> PAGES["pages/<br/>thin: SEO + composition"]
+    PAGES -->|compose| FEAT["features/<br/>UI + feature logic"]
+    FEAT -->|use| UI["components/ui<br/>generic, props only"]
+    FEAT --> HOOKS["hooks/useQuery"]
+    FEAT --> STORE["store/ (createStore)"]
+    FEAT --> SVC["*Service.js<br/>one per feature"]
+    HOOKS --> QC["lib/queryCache"]
+    STORE --> CS["lib/createStore"]
+    SVC --> HTTP["lib/http<br/>timeout · retry · abort"]
+    HTTP --> API(["REST API"])
 ```
 
 **Dependency rules**
@@ -302,24 +516,32 @@ Every component keeps its CSS file next to it. Imports use the `@/` alias (`@/li
 
 **Full-stack view**
 
+```mermaid
+flowchart LR
+    subgraph Browser
+        UI["React UI<br/>/app pages"] --> CONTRACT{{"same api contract"}}
+        CONTRACT --> ENG["engine/<br/>demo mode"]
+        CONTRACT --> REM["remote/<br/>API mode + offline outbox"]
+    end
+    subgraph Server["Server (Node.js)"]
+        RT["Express routes"] --> VAL["zod validation"] --> AUTH["requireAuth →<br/>requireMembership →<br/>authorize"]
+        AUTH --> UOW["withWrite<br/>transaction + audit + notify"]
+        UOW -->|after commit| BUS["Event bus"]
+        BUS --> AUTO["Automations"]
+        BUS --> JOBS[["Job queue → worker<br/>retries · dead-letter"]]
+        BUS --> ROOMS["WebSocket rooms"]
+    end
+    REM -->|"REST (JWT)"| RT
+    ROOMS -->|live events| REM
+    UOW --> PG[("PostgreSQL")]
+    JOBS --> PG
+    SHARED[/"shared/ domain logic"/]
+    ENG -.-> SHARED
+    AUTO -.-> SHARED
+    AUTH -.-> SHARED
 ```
- Browser                                               Server (Node.js)
- ┌──────────────────────────────┐   REST (JWT)    ┌───────────────────────────────────┐
- │ React UI (/app pages)        │ ──────────────▶ │ Express routes → zod validation   │
- │        │ same api contract   │                 │   → requireAuth → requireMembership│
- │        ▼                     │   WebSocket     │   → authorize (shared/permissions)│
- │ engine/ (demo) or remote/    │ ◀────────────── │   → withWrite: TX + audit + notify│
- │ (API mode + offline outbox)  │   live events   │        │ after commit             │
- └──────────────┬───────────────┘                 │        ▼                          │
-                │                                 │   Event bus → automations         │
-                └──── shared/ domain logic ───────│            → webhooks (job queue) │
-                                                  │            → WebSocket rooms      │
-                                                  │   Worker: claims jobs, retries,   │
-                                                  │           dead-letter queue       │
-                                                  └───────────────┬───────────────────┘
-                                                                  ▼
-                                                             PostgreSQL
-```
+
+The step-by-step flows (task updates, automation, GitHub sync, jobs, sign-in, offline) are explained with diagrams in [How it works](#how-it-works).
 
 A deeper write-up, including data-flow diagrams, is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
