@@ -382,7 +382,7 @@ Target: **WCAG 2.1 AA**.
 
 ## Testing
 
-**209 automated tests**: 177 frontend + shared-logic tests and 32 API tests. CI fails if frontend coverage drops below 75%.
+**209 automated tests**: 177 frontend + shared-logic tests and 32 API tests. CI enforces minimum coverage per layer: about 85% of lines for the shared domain logic and `src/lib`, 75% for hooks and 50% for the in-browser workspace engine. The workspace UI pages are the least covered part; end-to-end tests are the first item under Future improvements.
 
 | Layer                 | Examples                                                                                                                                                        |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -417,7 +417,7 @@ cd server && npm test   # API tests
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Vercel** (recommended) | Import the repo at vercel.com. `vercel.json` provides the SPA rewrites and security headers                                                                                                                      |
 | **Netlify**              | Import the repo. `netlify.toml` provides the same                                                                                                                                                                |
-| **GitHub Pages**         | Push to `main` and set _Settings → Pages → Source: GitHub Actions_. The workflow tests and builds with hash routing                                                                                              |
+| **GitHub Pages**         | Optional backup: set _Settings → Pages → Source: GitHub Actions_, then run the **Deploy to GitHub Pages** workflow manually. It tests and builds with hash routing                                               |
 | **Docker**               | `docker build -t flowdesk . && docker run -p 8080:8080 flowdesk`. A multi-stage build runs the tests, then serves the site with non-root nginx                                                                   |
 | **Full stack**           | `docker compose up --build` runs PostgreSQL, the API and the web app. For hosting: API on Render/Railway/Fly.io with a managed PostgreSQL (Neon, Supabase), frontend on Vercel with `VITE_WORKSPACE_API_URL` set |
 
