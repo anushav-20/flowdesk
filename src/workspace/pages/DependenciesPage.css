@@ -1,0 +1,81 @@
+.deps-controls {
+  max-width: 560px;
+}
+.graph-wrap {
+  padding: 1rem;
+  overflow-x: auto;
+}
+.graph {
+  display: block;
+  min-width: 100%;
+}
+.graph__edge {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 2;
+}
+.graph__edge.is-critical {
+  stroke: var(--danger);
+  stroke-width: 3;
+}
+.graph__arrow {
+  fill: var(--border-strong);
+}
+.graph__arrow--crit {
+  fill: var(--danger);
+}
+.graph__node {
+  cursor: pointer;
+  outline: none;
+}
+.graph__node rect {
+  fill: var(--surface);
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+  transition: stroke var(--dur-fast);
+}
+.graph__node:hover rect,
+.graph__node:focus-visible rect {
+  stroke: var(--brand);
+  stroke-width: 3;
+}
+.graph__node.is-critical rect {
+  stroke: var(--danger);
+  stroke-width: 2.5;
+}
+.graph__node.is-risk rect {
+  fill: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+.graph__node.is-done {
+  opacity: 0.5;
+}
+.graph__node.is-progress rect,
+.graph__node.is-review rect {
+  fill: color-mix(in srgb, var(--brand-soft) 60%, var(--surface));
+}
+.graph__key {
+  fill: var(--text-muted);
+  font: 700 11px var(--font-sans);
+}
+.graph__title {
+  fill: var(--text);
+  font: 600 13px var(--font-sans);
+}
+.graph-legend {
+  padding: 0 1.25rem 1rem;
+}
+.graph-legend__crit,
+.graph-legend__risk {
+  display: inline-block;
+  width: 18px;
+  height: 3px;
+  margin-right: 0.25rem;
+  vertical-align: middle;
+  background: var(--danger);
+}
+.graph-legend__risk {
+  height: 10px;
+  width: 14px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+}

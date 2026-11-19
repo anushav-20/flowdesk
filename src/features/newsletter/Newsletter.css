@@ -1,0 +1,109 @@
+.newsletter {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 5vw, 4rem);
+  border-radius: calc(var(--radius-lg) + 6px);
+  background: linear-gradient(135deg, #2a1f8f 0%, #5b3fd6 50%, #0e7fa3 100%);
+  color: #fff;
+  text-align: center;
+  isolation: isolate;
+}
+
+.newsletter__glow {
+  position: absolute;
+  inset: -40% -10% auto auto;
+  z-index: -1;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.25), transparent 65%);
+  animation: blob-float 12s ease-in-out infinite alternate;
+}
+
+.newsletter__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(6px);
+}
+
+.newsletter__title {
+  max-width: 640px;
+  margin: 1.25rem auto 0;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 800;
+}
+
+.newsletter__text {
+  max-width: 540px;
+  margin: 1rem auto 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.05rem;
+}
+
+.newsletter__form {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 520px;
+  margin: 2rem auto 0;
+}
+
+.newsletter__form input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.95rem 1.3rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 1rem;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+.newsletter__form input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+.newsletter__form input:focus {
+  outline: none;
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+.newsletter__form input[aria-invalid='true'] {
+  border-color: #ffb3c0;
+}
+
+.newsletter .btn--primary {
+  background: #fff;
+  color: #2a1f8f;
+  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.5);
+}
+.newsletter :focus-visible {
+  outline-color: #fff;
+}
+
+.newsletter__hint {
+  margin-top: 0.9rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.9rem;
+}
+.newsletter__hint.is-error {
+  color: #ffd1d9;
+  font-weight: 600;
+}
+.newsletter__hint.is-success {
+  color: #b5ffe4;
+  font-weight: 600;
+}
+
+@media (max-width: 539px) {
+  .newsletter__form {
+    flex-direction: column;
+  }
+  .newsletter__form .btn {
+    width: 100%;
+  }
+}

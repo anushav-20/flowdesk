@@ -1,0 +1,17 @@
+.faq {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  align-items: start;
+  gap: clamp(2rem, 5vw, 4rem);
+}
+
+@media (max-width: 899px) {
+  .faq {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .faq .section-heading {
+    text-align: center;
+    margin-inline: auto;
+  }
+}

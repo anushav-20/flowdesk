@@ -1,0 +1,220 @@
+.task-modal .modal__body {
+  display: grid;
+  gap: 1rem;
+}
+.td-head {
+  display: grid;
+  gap: 0.6rem;
+}
+.ws .td-title {
+  padding: 0.25rem 0.4rem !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  font-size: 1.35rem !important;
+  font-weight: 800;
+}
+.ws .td-title:hover:not(:disabled) {
+  border-color: var(--border) !important;
+}
+.ws .td-title:focus {
+  border-color: var(--brand) !important;
+  background: var(--bg) !important;
+}
+.td-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.td-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+.td-tabs {
+  width: 100%;
+}
+.drawer-section {
+  display: grid;
+  gap: 1.1rem;
+}
+.td-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.td-static {
+  padding: 0.55rem 0;
+  font-weight: 600;
+}
+.td-save {
+  margin-top: 0.75rem;
+}
+.td-add-dep {
+  margin-top: 0.5rem;
+}
+.fieldset {
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.fieldset legend {
+  padding: 0 0.35rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* Approval steps */
+.approval-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.approval-steps__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.approval-steps__item span:nth-child(2) {
+  display: grid;
+}
+.approval-steps__item small {
+  color: var(--text-muted);
+}
+.approval-steps__dot {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.approval-steps__item.is-done .approval-steps__dot {
+  background: var(--success);
+  color: #fff;
+}
+.approval-steps__item.is-current {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+.approval-steps__item.is-current .approval-steps__dot {
+  background: var(--brand);
+  color: #fff;
+}
+.approval-steps__item.is-rejected {
+  border-color: var(--danger);
+}
+.approval-steps__item.is-rejected .approval-steps__dot {
+  background: var(--danger);
+  color: #fff;
+}
+.td-approval-status {
+  font-size: 0.95rem;
+}
+.td-reject {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+}
+.td-reason-text {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Comments */
+.comments-list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.comment-item {
+  display: flex;
+  gap: 0.7rem;
+}
+.comment-item__main {
+  flex: 1;
+  min-width: 0;
+}
+.comment-item__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.comment-item__head time {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.comment-item__head .icon-btn {
+  margin-left: auto;
+}
+.comment-item__body {
+  margin-top: 0.2rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.avatar--system {
+  width: 32px;
+  height: 32px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-size: 0.9rem;
+}
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.attachments img {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.attachment-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+.attachment-file.is-pending {
+  color: var(--text-muted);
+}
+.comment-form {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.attach-btn {
+  cursor: pointer;
+}
+.attach-btn:focus-within {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}

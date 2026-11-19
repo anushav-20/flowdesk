@@ -1,0 +1,319 @@
+openapi: 3.1.0
+info:
+  title: FlowDesk API
+  version: 1.0.0
+  description: |
+    Multi-tenant project management API (Node.js · Express · PostgreSQL · JWT).
+
+    **Auth:** `POST /auth/login` returns a short-lived JWT `accessToken` (15 min) and a `refreshToken`
+    (7 days, rotated on every use). Send `Authorization: Bearer <accessToken>`.
+
+    **Tenancy:** every workspace resource lives under `/orgs/{orgId}`. Non-members receive `404`.
+    Roles: `owner` › `admin` › `member` › `viewer` (see `shared/permissions.js`).
+
+    **Errors:** `{ "error": { "code": "validation", "message": "…", "details": [...] } }`
+
+    **Realtime:** connect to `ws://host/ws?token=<accessToken>`, send `{"type":"subscribe","orgId":"…"}`;
+    receive `{"type":"event","event":"task.updated","id":"…"}` and presence messages.
+servers:
+  - url: http://localhost:4000/api
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    orgId: { name: orgId, in: path, required: true, schema: { type: string } }
+    taskId: { name: taskId, in: path, required: true, schema: { type: string } }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: validation }
+            message: { type: string }
+            details: { type: array, items: { type: object } }
+    Tokens:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: string, example: 15m }
+    Task:
+      type: object
+      properties:
+        id: { type: string }
+        key: { type: string, example: FD-12 }
+        title: { type: string, maxLength: 120 }
+        description: { type: string }
+        projectId: { type: string }
+        status: { type: string, enum: [todo, progress, review, done] }
+        priority: { type: string, enum: [low, medium, high] }
+        assigneeId: { type: [string, 'null'] }
+        dueDate: { type: [string, 'null'], format: date }
+        estimate: { type: number }
+        blockedBy: { type: array, items: { type: string } }
+        parentId: { type: [string, 'null'] }
+        customFields: { type: object, additionalProperties: true }
+        recurrence:
+          {
+            type: [object, 'null'],
+            properties: { freq: { enum: [daily, weekly, monthly] }, interval: { type: integer } },
+          }
+        approval:
+          {
+            type: object,
+            properties:
+              {
+                status: { enum: [none, pending, approved, rejected] },
+                step: { type: integer },
+                history: { type: array },
+              },
+          }
+        links: { type: array, items: { type: object } }
+        version: { type: integer, description: Optimistic-concurrency version }
+security:
+  - bearer: []
+paths:
+  /health:
+    get:
+      {
+        summary: Liveness + database check,
+        security: [],
+        responses: { '200': { description: OK }, '503': { description: Database unreachable } },
+      }
+  /auth/register:
+    post:
+      summary: Create an account and a first workspace
+      security: []
+      requestBody:
+        {
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [name, email, password],
+                      properties:
+                        {
+                          name: { type: string },
+                          email: { type: string },
+                          password: { type: string, minLength: 8 },
+                          orgName: { type: string },
+                        },
+                    },
+                },
+            },
+        }
+      responses:
+        { '201': { description: Created }, '409': { description: Email in use }, '422': { description: Invalid input } }
+  /auth/login:
+    post:
+      summary: Sign in (rate-limited)
+      security: []
+      requestBody:
+        {
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      required: [email, password],
+                      properties: { email: { type: string }, password: { type: string } },
+                    },
+                },
+            },
+        }
+      responses:
+        {
+          '200':
+            { description: Tokens, content: { application/json: { schema: { $ref: '#/components/schemas/Tokens' } } } },
+          '401': { description: Invalid credentials },
+          '429': { description: Too many attempts },
+        }
+  /auth/refresh:
+    post:
+      {
+        summary: Rotate refresh token (reuse revokes all sessions),
+        security: [],
+        responses: { '200': { description: New tokens }, '401': { description: Expired or reused } },
+      }
+  /auth/me:
+    get: { summary: Current user and workspaces, responses: { '200': { description: OK } } }
+  /orgs:
+    get: { summary: Workspaces I belong to, responses: { '200': { description: OK } } }
+    post: { summary: Create a workspace (caller becomes owner), responses: { '201': { description: Created } } }
+  /orgs/{orgId}:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: Workspace details, responses: { '200': { description: OK }, '404': { description: Not a member } } }
+    patch:
+      {
+        summary: Update settings / approval chain (admin),
+        responses: { '200': { description: OK }, '403': { description: Forbidden } },
+      }
+  /orgs/{orgId}/bootstrap:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: Everything the app needs in one round trip, responses: { '200': { description: OK } } }
+  /orgs/{orgId}/members:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: List members and roles, responses: { '200': { description: OK } } }
+  /orgs/{orgId}/members/{userId}:
+    parameters:
+      [{ $ref: '#/components/parameters/orgId' }, { name: userId, in: path, required: true, schema: { type: string } }]
+    patch: { summary: Change role (owner only; last owner protected), responses: { '200': { description: OK } } }
+    delete: { summary: Remove member (unassigns their open tasks), responses: { '204': { description: Removed } } }
+  /orgs/{orgId}/invitations:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    post: { summary: Invite by email, responses: { '201': { description: Invited } } }
+  /orgs/{orgId}/fields:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: Custom field definitions, responses: { '200': { description: OK } } }
+    post: { summary: Add a custom field (no schema migration needed), responses: { '201': { description: Created } } }
+  /orgs/{orgId}/projects:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: List projects, responses: { '200': { description: OK } } }
+    post: { summary: Create project, responses: { '201': { description: Created } } }
+  /orgs/{orgId}/tasks:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get:
+      summary: List tasks (filter + paginate)
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: projectId, in: query, schema: { type: string } }
+        - { name: assigneeId, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 500 } }
+        - { name: offset, in: query, schema: { type: integer } }
+      responses: { '200': { description: OK } }
+    post:
+      summary: Create task (runs automations, webhooks, notifications)
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/Task' } } } }
+      responses: { '201': { description: Created }, '403': { description: Viewer }, '422': { description: Invalid } }
+  /orgs/{orgId}/tasks/{taskId}:
+    parameters: [{ $ref: '#/components/parameters/orgId' }, { $ref: '#/components/parameters/taskId' }]
+    get: { summary: Get task, responses: { '200': { description: OK }, '404': { description: Not found } } }
+    patch:
+      summary: Update task. Send `version` for optimistic concurrency.
+      responses: { '200': { description: OK }, '409': { description: 'version_conflict | blocked | approval_pending' } }
+    delete: { summary: Delete task (admin), responses: { '204': { description: Deleted } } }
+  /orgs/{orgId}/tasks/{taskId}/dependencies:
+    parameters: [{ $ref: '#/components/parameters/orgId' }, { $ref: '#/components/parameters/taskId' }]
+    post:
+      {
+        summary: Add prerequisite (cycles rejected with 409),
+        responses: { '201': { description: OK }, '409': { description: cycle } },
+      }
+  /orgs/{orgId}/tasks/{taskId}/approval:
+    parameters: [{ $ref: '#/components/parameters/orgId' }, { $ref: '#/components/parameters/taskId' }]
+    post:
+      summary: Approval state machine transition
+      requestBody:
+        {
+          content:
+            {
+              application/json:
+                {
+                  schema:
+                    {
+                      type: object,
+                      properties: { type: { enum: [submit, resubmit, approve, reject] }, reason: { type: string } },
+                    },
+                },
+            },
+        }
+      responses: { '200': { description: OK }, '409': { description: Invalid transition / not the approver } }
+  /orgs/{orgId}/tasks/{taskId}/comments:
+    parameters: [{ $ref: '#/components/parameters/orgId' }, { $ref: '#/components/parameters/taskId' }]
+    get: { summary: List comments, responses: { '200': { description: OK } } }
+    post:
+      {
+        summary: Comment with @mentions and up to 3 attachments (≤1 MB,
+        type allow-list),
+        responses: { '201': { description: Created } },
+      }
+  /orgs/{orgId}/events:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: Calendar events in a date range, responses: { '200': { description: OK } } }
+    post: { summary: Add meeting / milestone, responses: { '201': { description: Created } } }
+  /orgs/{orgId}/docs/{docId}:
+    parameters:
+      [{ $ref: '#/components/parameters/orgId' }, { name: docId, in: path, required: true, schema: { type: string } }]
+    get: { summary: Get document, responses: { '200': { description: OK } } }
+    put:
+      {
+        summary: Save with baseVersion; concurrent edits are 3-way merged,
+        responses: { '200': { description: '{ doc, merged, conflicts }' } },
+      }
+  /orgs/{orgId}/search:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get:
+      { summary: Search tasks, projects, comments, people, docs, activity, responses: { '200': { description: OK } } }
+  /orgs/{orgId}/analytics:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: Summary, velocity, workload and deadline forecasts, responses: { '200': { description: OK } } }
+  /orgs/{orgId}/ai/ask:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    post:
+      {
+        summary: Grounded AI assistant (optional LLM rewrite),
+        responses: { '200': { description: '{ intent, text, items, source }' } },
+      }
+  /orgs/{orgId}/ai/plan:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    post: { summary: Generate a dependency-ordered task plan from a goal, responses: { '200': { description: OK } } }
+  /orgs/{orgId}/audit:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: Audit log with before/after (admin), responses: { '200': { description: OK } } }
+  /orgs/{orgId}/audit/{auditId}/restore:
+    parameters:
+      [{ $ref: '#/components/parameters/orgId' }, { name: auditId, in: path, required: true, schema: { type: string } }]
+    post: { summary: Restore a task to its state before a change (admin), responses: { '200': { description: OK } } }
+  /orgs/{orgId}/automations:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: List rules, responses: { '200': { description: OK } } }
+    post: { summary: Create rule (trigger → conditions → actions), responses: { '201': { description: Created } } }
+  /orgs/{orgId}/webhooks:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: List webhooks, responses: { '200': { description: OK } } }
+    post:
+      {
+        summary: Register webhook (https,
+        public host only; HMAC-signed deliveries),
+        responses: { '201': { description: Created } },
+      }
+  /orgs/{orgId}/jobs:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: Job queue + dead-letter queue, responses: { '200': { description: OK } } }
+    post: { summary: Enqueue a maintenance job, responses: { '202': { description: Queued } } }
+  /orgs/{orgId}/jobs/{jobId}/retry:
+    parameters:
+      [{ $ref: '#/components/parameters/orgId' }, { name: jobId, in: path, required: true, schema: { type: string } }]
+    post: { summary: Retry a dead-lettered job, responses: { '202': { description: Queued } } }
+  /orgs/{orgId}/sync:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    post:
+      {
+        summary: Apply offline mutations with field-level conflict detection,
+        responses: { '200': { description: Per-mutation results } },
+      }
+  /orgs/{orgId}/health:
+    parameters: [{ $ref: '#/components/parameters/orgId' }]
+    get: { summary: DB latency, job stats and API metrics (admin), responses: { '200': { description: OK } } }
+  /integrations/github/{orgId}:
+    post:
+      {
+        summary: GitHub webhook receiver (X-Hub-Signature-256 verified),
+        security: [],
+        responses: { '200': { description: OK }, '401': { description: Bad signature } },
+      }
+  /calendar/{orgId}/{token}.ics:
+    get:
+      {
+        summary: iCalendar subscription feed (Google Calendar / Outlook),
+        security: [],
+        responses: { '200': { description: text/calendar } },
+      }

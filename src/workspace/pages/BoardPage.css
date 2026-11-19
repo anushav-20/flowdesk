@@ -1,0 +1,221 @@
+.ws-page--wide {
+  max-width: none;
+}
+.board-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.board-filters label {
+  flex: 1 1 160px;
+  max-width: 260px;
+}
+
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(250px, 1fr));
+  gap: 0.9rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.kcol {
+  display: flex;
+  flex-direction: column;
+  min-height: 60vh;
+  padding: 0.75rem;
+  border: 2px dashed transparent;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  transition:
+    border-color var(--dur-fast),
+    background var(--dur-fast);
+}
+.kanban.is-dragging .kcol {
+  border-color: var(--border-strong);
+}
+.kcol.is-over {
+  border-color: var(--brand) !important;
+  background: var(--brand-soft);
+}
+.kcol__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0 0.25rem;
+}
+.kcol__head h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.kcol__head::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c);
+}
+.kcol--todo {
+  --c: #f59e0b;
+}
+.kcol--progress {
+  --c: var(--brand);
+}
+.kcol--review {
+  --c: #0ea5e9;
+}
+.kcol--done {
+  --c: var(--success);
+}
+.kcol__count {
+  padding: 0 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.kcol__head .icon-btn {
+  margin-left: auto;
+}
+.kcol__list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.kcol__empty {
+  padding: 2rem 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.kcard {
+  position: relative;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+  transition:
+    box-shadow var(--dur-fast),
+    transform var(--dur-fast);
+  animation: task-in var(--dur) var(--ease);
+}
+@keyframes task-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.kcard:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.kcard--high {
+  border-left-color: var(--danger);
+}
+.kcard--medium {
+  border-left-color: #f59e0b;
+}
+.kcard--low {
+  border-left-color: var(--success);
+}
+.kcard.is-blocked {
+  opacity: 0.75;
+}
+.kcard__open {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.kcard__open:hover .kcard__title {
+  color: var(--brand-text);
+}
+.kcard__key {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.kcard__title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.kcard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.kcard__due {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.kcard__due.is-overdue {
+  color: var(--danger);
+  font-weight: 700;
+}
+.kcard__icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.kcard__assignee {
+  margin-left: auto;
+}
+.kcard__move {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: flex;
+  gap: 0.1rem;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+}
+.kcard:hover .kcard__move,
+.kcard:focus-within .kcard__move {
+  opacity: 1;
+}
+.kcard__move button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.kcard__move button:hover {
+  color: var(--brand-text);
+  border-color: var(--brand);
+}
+@media (hover: none) {
+  .kcard__move {
+    opacity: 1;
+    position: static;
+    justify-content: flex-end;
+  }
+}

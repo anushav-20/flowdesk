@@ -1,0 +1,67 @@
+# Runs on every push and pull request: lint → format check → tests (with coverage gate) → build.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Check formatting
+        run: npm run format:check
+      - name: Unit, integration & accessibility tests
+        run: npm run coverage
+      - name: Security audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Build
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
+          retention-days: 7
+
+  api:
+    runs-on: ubuntu-latest
+    # Real PostgreSQL in CI (unit tests use an in-memory Postgres; this checks migrations against the real thing)
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_USER: flowdesk, POSTGRES_PASSWORD: flowdesk, POSTGRES_DB: flowdesk }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U flowdesk" --health-interval 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - name: API tests (Express + in-memory Postgres)
+        run: npm test
+      - name: Migrations + seed against real PostgreSQL
+        run: npm run seed
+        env:
+          DATABASE_URL: postgres://flowdesk:flowdesk@localhost:5432/flowdesk
+      - name: Security audit
+        run: npm audit --omit=dev --audit-level=high

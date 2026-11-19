@@ -1,0 +1,183 @@
+.pricing__toggle-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+
+/* ---------- Billing toggle ---------- */
+.billing-toggle {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+}
+
+.billing-toggle label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-width: 132px;
+  padding: 0.65rem 1.2rem;
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease);
+}
+.billing-toggle label.is-active {
+  color: var(--text);
+}
+
+.billing-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.billing-toggle label:has(input:focus-visible) {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.billing-toggle__pill {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: calc(50% - 5px);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--dur) var(--ease);
+}
+.billing-toggle__pill[data-position='yearly'] {
+  transform: translateX(100%);
+}
+
+.billing-toggle__save {
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  color: var(--success);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* ---------- Plans ---------- */
+.pricing__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  gap: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+}
+
+.plan__badge {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.3rem 0.9rem;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-brand);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.plan__name {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.plan__desc {
+  margin-top: 0.4rem;
+  color: var(--text-muted);
+  min-height: 3.2em;
+}
+
+.plan__price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 1.5rem 0;
+}
+.plan__amount {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  animation: price-pop var(--dur) var(--ease);
+}
+.plan__period {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+@keyframes price-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.plan__features {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.plan__features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.plan__features .icon {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--success);
+}
+
+@media (max-width: 999px) {
+  .pricing__grid {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+    margin-inline: auto;
+    gap: 2rem;
+  }
+  .plan__desc {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 399px) {
+  .billing-toggle label {
+    min-width: 0;
+    padding-inline: 0.9rem;
+  }
+}
+
+.pricing__compare-link {
+  margin-top: 2.5rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+.pricing__compare-link a {
+  color: var(--brand-text);
+  font-weight: 600;
+}

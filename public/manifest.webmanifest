@@ -1,0 +1,9 @@
+{
+  "name": "FlowDesk",
+  "short_name": "FlowDesk",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8f9fe",
+  "theme_color": "#6d5dfc",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
